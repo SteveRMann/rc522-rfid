@@ -91,11 +91,16 @@ void reconnect()
   while (!client.connected()) {
     Serial.println(F("Attempting MQTT connection..."));
 
-    //if (client.connect(client_name))  {
     if (client.connect(hostName))  {            //hostName is built in setup_wifi()
-      client.publish(msgTopic, "0000");
-      Serial.println(F("connected"));
-      client.subscribe(cmdTopic);
+      Serial.print(F("connected, "));
+      Serial.println(F("Subscribed to:"));
+      Serial.println(unlockTopic);
+      Serial.println(lockTopic);
+      Serial.println(drawerTimeTopic);
+      
+      client.subscribe(unlockTopic);
+      client.subscribe(lockTopic);
+      client.subscribe(drawerTimeTopic);
     }
     else {
       Serial.print(F("failed, rc= "));

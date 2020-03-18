@@ -1,6 +1,6 @@
 #define SKETCH_NAME "Monkey_Detector.ino"
-#define SKETCH_VERSION "V1.1"
-#define HOSTPREFIX "Monkey"
+#define SKETCH_VERSION "V1.2"
+#define HOSTPREFIX "monkey"
 
 
 /*
@@ -24,6 +24,8 @@
    RST          D1 (GPIO5)        D3
    3.3V         3.3V
    ----------------------------------------
+   Version 1.2  Added read/write the servo positions to EEPROM.
+
 */
 
 
@@ -36,12 +38,12 @@ char hostName[24];        // Holds hostNamePrefix + the last three bytes of the 
 #define LED_OFF LOW
 
 //Servo positions
-#define LOCKED 0
-#define UNLOCKED 90
+///int locked_Position = 85;
+///int unlocked_Position = 103;
 
 // Drawer timer
 unsigned long drawerMillis;           // Used to time how long the drawer stays unlocked.
-unsigned long drawerTime = 3000;     // How long the drawer should be unlocked.
+///unsigned long drawerTime = 3000;     // How long the drawer should be unlocked.
 
 //LED Blink timer
 unsigned long ledMillis;              //LED ON timer
@@ -53,10 +55,21 @@ unsigned long ledTime = 300;          //LED ON duration
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include "D:\River Documents\Arduino\libraries\Kaywinnet.h"
-
-
+#include <EEPROM.h>
 #include <Servo.h>
 Servo servo;
+
+#include "eepromAnything.h"
+
+struct servo {
+  int locked_Position ;
+  int unlocked_Position ;
+  unsigned long drawerTime;
+};
+struct servo myServo;
+int locked_Position = myServo.locked_Position;
+int unlocked_Position = myServo.unlocked_Position;
+unsigned long drawerTime = myServo.drawerTime;
 
 
 
@@ -69,15 +82,17 @@ PubSubClient client(Monkey);
 #ifndef mqtt_server
 #define mqtt_server "192.168.1.124"
 #endif
-#define client_name "Monkey"           //Must be unique
+#define client_name hostName           //Must be unique
 
 char msgIN;
 
-#define NODENAME "Monkey"
-const char *statusTopic = NODENAME "/status";
-const char *connectName =  NODENAME "xyzzMonkey";             //Must be unique
-const char* cmdTopic = NODENAME "/led";
-const char* msgTopic = NODENAME "/msg";
+const char *statusTopic = HOSTPREFIX "/status";
+const char *connectName =  HOSTPREFIX "xyzzMonkey";             //Must be unique
+const char* msgTopic = HOSTPREFIX "/msg";
+const char* lockTopic = HOSTPREFIX "/l";
+const char* unlockTopic = HOSTPREFIX "/u";
+const char* drawerTimeTopic = HOSTPREFIX "/t";
+
 
 //const int unlockCard = 366;       // This is the card number we're looking for
 const int unlockCard = 627;         // This card number unlocks the drawer
@@ -111,14 +126,41 @@ int cardId = 0;                     // Card ID (Sum of NUID byes)
 //============================= Setup =============================
 void setup() {
   beginSerial();
+  EEPROM.begin(40);                      //holds 2 integers and one long int.
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
 
   Serial.print(F("msgTopic= "));
   Serial.println(msgTopic);
 
-  setup_wifi();
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+  Serial.println();
+  Serial.print(F("MAC Address: "));
+  Serial.println(macToStr(mac));
+  Serial.println();
 
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
+  /*
+    locked_Position = EEPROM.read(0);
+    unlocked_Position = EEPROM.read(4);
+    drawerTime = EEPROM.read(8);
+  */
+  //locked_Position = eeReadInt(0);
+  //unlocked_Position = eeReadInt(4);
+
+  EEPROM_readAnything(0, myServo);
+  locked_Position = myServo.locked_Position;
+  unlocked_Position = myServo.unlocked_Position;
+  drawerTime = myServo.drawerTime;
+
+  Serial.print(F("lock-unlock-time= "));
+  Serial.print(locked_Position);
+  Serial.print(F(" - "));
+  Serial.print(unlocked_Position);
+  Serial.print(F(" - "));
+  Serial.println(drawerTime);
+
 
   SPI.begin();                    // Init SPI bus
   rfid.PCD_Init();                // Init MFRC522
@@ -138,19 +180,12 @@ void setup() {
 
 
 
-  uint8_t mac[6];
-  WiFi.macAddress(mac);
-  Serial.println();
-  Serial.print(F("MAC Address: "));
-  Serial.println(macToStr(mac));
-  Serial.println();
-
 
   //Start with the servo in the locked position
   servo.attach(2); //D4
-  servo.write(UNLOCKED);
+  servo.write(unlocked_Position);
   delay(500);
-  servo.write(LOCKED);
+  servo.write(locked_Position);
   delay(200);
 }
 
@@ -165,7 +200,7 @@ void loop() {
   unlockSwitchValue = digitalRead(unlockSwitchPin);
   if (unlockSwitchValue == HIGH) {
     //digitalWrite(LedPin, LED_ON);                //High=LED ON.
-    servo.write(UNLOCKED);
+    servo.write(unlocked_Position);
     drawerMillis = millis();                       //Start a timer to lock it again
     //delay(500);
   }
@@ -173,7 +208,7 @@ void loop() {
   if (millis() - drawerMillis > drawerTime) {     //If the drawer has been unlocked for a while, lock it.
     //Serial.println(F("Locked"));
     //digitalWrite(LedPin, LED_OFF);
-    servo.write(LOCKED);
+    servo.write(locked_Position);
     //delay(100);
   }
 
@@ -194,7 +229,7 @@ void loop() {
 
   if (millis() - drawerMillis > drawerTime) {     //If the drawer has been unlocked for a while, lock it.
     //Serial.println(F("Locked"));
-    servo.write(LOCKED);
+    servo.write(locked_Position);
     //delay(100);
   }
 
@@ -223,7 +258,7 @@ void loop() {
 
   //Serial.println(F("A new card has been detected."));
   digitalWrite(LEDPIN, LED_ON);
-  ledMillis=millis();
+  ledMillis = millis();
 
   cardId = 0;
 
@@ -238,7 +273,7 @@ void loop() {
     // Found the card we're looking for.
     // Unlock the drawer
     Serial.println(F("Drawer unlocked"));
-    servo.write(UNLOCKED);
+    servo.write(unlocked_Position);
 
     //Start a 30-second timer to lock it again
     drawerMillis = millis();
@@ -248,7 +283,7 @@ void loop() {
   if (cardId == lockCard) {
     // Lock the drawer
     Serial.println(F("Drawer locked"));
-    servo.write(LOCKED);
+    servo.write(locked_Position);
   }
 
 
@@ -285,6 +320,7 @@ void loop() {
 // This function is executed when some device publishes a message to a topic that this ESP8266 is subscribed to.
 void callback(String topic, byte * message, unsigned int length) {
 
+
   Serial.println();
   Serial.println();
   Serial.print(F("Message arrived on topic: "));
@@ -292,6 +328,7 @@ void callback(String topic, byte * message, unsigned int length) {
   Serial.println(F(""));
 
   Serial.print(F("messageString: '"));
+
 
   // Convert the character array to a string
   String messageString;
@@ -302,24 +339,66 @@ void callback(String topic, byte * message, unsigned int length) {
   messageString.toUpperCase();          //Make the string upper-case
 
 
-  Serial.print(messageString);
-  Serial.println(F("'"));
-  Serial.print(F("Length= "));
-  Serial.print(length);
-  Serial.println();
+  /*
+    Serial.print(messageString);
+    Serial.println(F("'"));
+    Serial.print(F("Length= "));
+    Serial.print(length);
+    Serial.println();
+  */
 
-  if (topic == cmdTopic) {
-    Serial.println(F("topic == cmdTopic"));
-    if (messageString == "ON") {
-      Serial.println(F("messageString == 'ON'"));
-      Serial.println(F("Lights ON"));
-      digitalWrite(LEDPIN, HIGH);
-    } else {
-      if (messageString == "OFF") {
-        Serial.println(F("messageString == 'OFF'"));
-        Serial.println(F("Lights OFF"));
-        digitalWrite(LEDPIN, LOW);
-      }
-    }
+  if (topic == lockTopic) {
+    locked_Position = messageString.toInt();                   //Set the new servo locked position
+    //EEPROM.write(0, locked_Position);
+    //eeWriteInt(0, locked_Position);
+    myServo.locked_Position = locked_Position;
+
   }
+
+  if (topic == unlockTopic) {
+    unlocked_Position = messageString.toInt();                   //Set the new servo locked position
+    //EEPROM.write(4, unlocked_Position);
+    //eeWriteInt(4, unlocked_Position);
+    myServo.unlocked_Position = unlocked_Position;
+  }
+
+  if (topic == drawerTimeTopic) {
+    drawerTime = messageString.toInt();
+    //EEPROM.write(8, drawerTime);
+    //   eeWriteLong(8, drawerTime);
+    myServo.drawerTime = drawerTime;
+  }
+
+  EEPROM_writeAnything(0, myServo);
+
+
+  if (EEPROM.commit()) {
+    Serial.println(F("EEPROM values written"));
+  } else {
+    Serial.println(F("ERROR! EEPROM commit failed"));
+  }
+
+  Serial.println(F("--READBACK--"));
+  /*
+    locked_Position = EEPROM.read(0);
+    unlocked_Position = EEPROM.read(4);
+    drawerTime = EEPROM.read(8);
+  */
+  //locked_Position = eeReadInt(0);
+  //unlocked_Position = eeReadInt(4);
+  //drawerTime = eeReadLong(8);
+  //drawerTime = eeprom_read_dword
+
+  EEPROM_readAnything(0, myServo);
+  locked_Position = myServo.locked_Position;
+  unlocked_Position = myServo.unlocked_Position;
+  drawerTime = myServo.drawerTime;
+
+  Serial.print(F("lock-unlock-time= "));
+  Serial.print(locked_Position);
+  Serial.print(F(" - "));
+  Serial.print(unlocked_Position);
+  Serial.print(F(" - "));
+  Serial.println(drawerTime);
+
 }           //callback
