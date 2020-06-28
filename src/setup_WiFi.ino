@@ -89,7 +89,7 @@ String macToStr(const uint8_t* mac) {
 void reconnect()
 {
   while (!client.connected()) {
-    Serial.println(F("Attempting MQTT connection..."));
+    Serial.println(F("\nAttempting MQTT connection..."));
 
     if (client.connect(hostName))  {            //hostName is built in setup_wifi()
       Serial.print(F("connected, "));
@@ -97,10 +97,12 @@ void reconnect()
       Serial.println(unlockTopic);
       Serial.println(lockTopic);
       Serial.println(drawerTimeTopic);
+      Serial.println(cmdTopic);
       
       client.subscribe(unlockTopic);
       client.subscribe(lockTopic);
       client.subscribe(drawerTimeTopic);
+      client.subscribe(cmdTopic);
     }
     else {
       Serial.print(F("failed, rc= "));
