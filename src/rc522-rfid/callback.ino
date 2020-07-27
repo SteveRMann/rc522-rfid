@@ -47,9 +47,11 @@ void callback(String topic, byte * message, unsigned int length) {
 
   if (topic == drawerTimeTopic) {
     drawerTime = messageString.toInt();
-    //  myServo.drawerTime = drawerTime;
-    publishStatus();
+//    Serial.print(F("New drawerTime= "));
+//    Serial.println(drawerTime);
+    drawerMillis = millis();                //Reset the drawer timer
     writeEprom();
+    publishStatus();    
   }
 
 
