@@ -1,5 +1,5 @@
 #define SKETCH_NAME "rc522-rfid.ino"
-#define SKETCH_VERSION "V1.1"
+#define SKETCH_VERSION "V1.2"
 #define HOSTPREFIX "monkey"
 
 
@@ -27,14 +27,10 @@
    Version 1.0  Cloned from monkey_detector.ino
                 because it really is just an RFID sensor on a nodemcu.
    Version 1.1  Changed default unlock time to 30-seconds, fixed a bug in publishStatus()
-                
+   Version 1.2  Added OTA
+
 */
 
-
-// ===== wifi vars =====
-char macBuffer[24];       // Holds the last three digits of the MAC, in hex.
-char hostNamePrefix[] = HOSTPREFIX;
-char hostName[24];        // Holds hostNamePrefix + the last three bytes of the MAC address.
 
 #define LED_ON HIGH
 #define LED_OFF LOW
@@ -48,12 +44,15 @@ bool tuneFlag = false;
 
 // ===== timers =====
 unsigned long drawerMillis;           // Used to time how long the drawer stays unlocked.
+unsigned long drawerTimeRemaining;
+unsigned long statusTimer;
 unsigned long tuneMillis;             // Timer for tuning
 unsigned long tuneTime = 1000;        // Tune duration in ms
 unsigned long ledMillis;              //LED ON timer
 unsigned long ledTime = 300;          //LED ON duration
 
 
+#include <ArduinoOTA.h>
 #include <SPI.h>
 #include <MFRC522.h>
 
@@ -63,6 +62,11 @@ unsigned long ledTime = 300;          //LED ON duration
 #include <EEPROM.h>
 #include <Servo.h>
 Servo servo;
+
+// setup_wifi vars for OTA and WiFi
+char macBuffer[24];       // Holds the last three digits of the MAC, in hex.
+char hostNamePrefix[] = HOSTPREFIX;
+char hostName[24];        // Holds hostNamePrefix + the last three bytes of the MAC address.
 
 #include "eepromAnything.h"
 

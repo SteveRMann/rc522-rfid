@@ -1,5 +1,6 @@
 //========== Loop ==========
 void loop() {
+  ArduinoOTA.handle();
   if (!client.connected()) {
     reconnect();
   }
@@ -36,14 +37,21 @@ void loop() {
     drawerMillis = millis();                       //Start a timer to lock it again
   }
 
-  if (millis() - drawerMillis > drawerTime) {     //If the drawer has been unlocked for a while, lock it.
+  // ==== If the drawer has been unlocked for a while, lock it. ====
+  if (millis() - drawerMillis > drawerTime) {
     drawerLock();
   }
 
-  if (millis() - ledMillis > ledTime) {          //If the LED has been on for a while, turn it off.
+  // ==== If the LED has been on for a while, turn it off. ====
+  if (millis() - ledMillis > ledTime) {
     digitalWrite(LEDPIN, LED_OFF);
   }
 
+  // ==== Publish the status every five seconds. ====
+  if (millis() - statusTimer > 5000) {
+    publishStatus();
+    statusTimer = millis();
+  }
 
 
 
@@ -88,9 +96,9 @@ void loop() {
   }
 
 
-  //  if (cardId == unlockCard1 || cardId == unlockCard2) {
+  // if (cardId == unlockCard1 || cardId == unlockCard2) {
   // Any card/tag opens the drawer.
-  //Serial.println(F("Drawer unlocked"));
+  // Serial.println(F("Drawer unlocked"));
 
   //Make sure the unlock is noticed
   for (int i = 0; i < 5; i++) {

@@ -3,6 +3,7 @@ void setup() {
   beginSerial();
   EEPROM.begin(40);                      //holds 2 integers and one long int.
   setup_wifi();
+  start_OTA();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
@@ -36,7 +37,7 @@ void setup() {
   //Defaults
   if (lockedPosition < 0) lockedPosition = 85;
   if (unlockedPosition < 0) unlockedPosition = 103;
-  if (drawerTime > 45000) drawerTime = 30000;
+  drawerTime = 30000;
 
   showStatus();
 

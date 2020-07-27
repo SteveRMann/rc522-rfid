@@ -94,7 +94,7 @@ void writeEprom() {
 // ============================= drawerLock() drawerUnlock() =============================
 void drawerLock() {
   if (lockStatus == UNLOCKED) {
-    //Serial.println(F("Drawer Locked"));
+    drawerTime = myServo.drawerTime;
     servo.write(lockedPosition);
     lockStatus = LOCKED;
     publishStatus();
@@ -103,7 +103,7 @@ void drawerLock() {
 
 void drawerUnlock() {
   if (lockStatus == LOCKED) {
-    //Serial.println(F("Drawer Unlocked"));
+    drawerTime = myServo.drawerTime;
     servo.write(unlockedPosition);
     drawerMillis = millis();                //Reset the drawer timer
     lockStatus = UNLOCKED;
@@ -114,9 +114,13 @@ void drawerUnlock() {
 
 // ============================= publishStatus() =============================
 void publishStatus() {
+  drawerTimeRemaining = (drawerTime - (millis() - drawerMillis)) / 1000;
+  if (lockStatus == LOCKED) {
+    drawerTimeRemaining = 0;
+  }
   showStatus();
   char buf [20];
-  sprintf (buf, "%d,%d,%u,%d", lockedPosition, unlockedPosition, drawerTime, lockStatus);
+  sprintf (buf, "%d,%d,%u,%d", lockedPosition, unlockedPosition, drawerTimeRemaining, lockStatus);
   client.publish(statusTopic, buf);
 }
 
@@ -124,12 +128,12 @@ void publishStatus() {
 // ============================= showStatus() =============================
 void showStatus() {
   Serial.println(F("--STATUS--"));
-  Serial.println(F("lock, unlock, time, status"));
+  Serial.println(F("lock, unlock, timeRemaining, status"));
   Serial.print(lockedPosition);
   Serial.print(F(", "));
   Serial.print(unlockedPosition);
   Serial.print(F(", "));
-  Serial.print(drawerTime);
+  Serial.print(drawerTimeRemaining);
   Serial.print(F(", "));
   if (lockStatus == LOCKED) {
     Serial.print(F("Locked"));
