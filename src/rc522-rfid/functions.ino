@@ -116,7 +116,7 @@ void drawerUnlock() {
 void publishStatus() {
   showStatus();
   char buf [20];
-  sprintf (buf, "%d,%d,%u, %d", lockedPosition, unlockedPosition, drawerTime, lockStatus);
+  sprintf (buf, "%d,%d,%u,%d", lockedPosition, unlockedPosition, drawerTime, lockStatus);
   client.publish(statusTopic, buf);
 }
 

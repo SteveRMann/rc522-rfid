@@ -36,7 +36,7 @@ void setup() {
   //Defaults
   if (lockedPosition < 0) lockedPosition = 85;
   if (unlockedPosition < 0) unlockedPosition = 103;
-  if (drawerTime > 45000) drawerTime = 1000;         // ?? don't know why
+  if (drawerTime > 45000) drawerTime = 30000;
 
   showStatus();
 
