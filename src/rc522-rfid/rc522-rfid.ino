@@ -1,5 +1,5 @@
 #define SKETCH_NAME "rc522-rfid.ino"
-#define SKETCH_VERSION "V1.0"
+#define SKETCH_VERSION "V1.1"
 #define HOSTPREFIX "monkey"
 
 
@@ -26,6 +26,7 @@
    ----------------------------------------
    Version 1.0  Cloned from monkey_detector.ino
                 because it really is just an RFID sensor on a nodemcu.
+   Version 1.1  Changed default unlock time to 30-seconds, fixed a bug in publishStatus()
                 
 */
 
